@@ -12,26 +12,6 @@
 
   $("body").html(template(context));
 
-  urls = [
-    {
-		url: '/',
-		name: 'index',
-		template: '',
-		context: {
-			name: "x",
-		}
-	},
-	{
-		url: '/algo',
-		name: 'algo',
-		template: '',
-		context: {
-			name: "aee"
-		}
-	}
-];
-
-
   appModel = {
 	name: 'index',
 	element: '#div',
@@ -107,81 +87,84 @@
 			]
 		},
 	]
-}
-;
+};
 
-
-  Object.size = function(obj) {
-    var key, size;
-    size = 0;
-    for (key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        size++;
-      }
-    }
-    return size;
-  };
 
   $.fn.miniEscoteiro = function(params) {
-    var _this;
     this.model = params;
     this.defaultRoute = this.currentRoute = params.name || 'index';
-    _this = this;
     this.born = function() {
-      return console.log(this.getRoutePath('algo4'));
-    };
-    this.render = function() {
-      return '';
+      console.log(this.getRoute('index/algo1/algo2-3'));
+      return this.getRoute('index/algo1/algo2-2/algo3/');
     };
     this.getRoutePath = function(name) {
-      var breakLoop, buildingPath, cleanPath, routePath, traverse;
+      var buildingPath, routePath;
       routePath = "";
       buildingPath = "";
-      breakLoop = false;
-      traverse = function(obj) {
-        var child, i, propName, propValue, stopLoop, _results;
-        _results = [];
-        for (propName in obj) {
-          propValue = obj[propName];
-          if (breakLoop) {
-            break;
-          }
-          if (propName === 'name') {
-            buildingPath += "" + propValue + "/";
-          }
-          if (propValue === name) {
-            routePath = buildingPath;
-            stopLoop = true;
-            break;
-          }
-          if (propName === "children") {
-            if (propValue.length) {
-              _results.push((function() {
-                var _results1;
-                _results1 = [];
-                for (i in propValue) {
-                  child = propValue[i];
-                  traverse(child);
-                  _results1.push(cleanPath());
-                }
-                return _results1;
-              })());
-            } else {
-              _results.push(void 0);
-            }
-          } else {
-            _results.push(void 0);
-          }
+      this.traverse(this.model, function(propName, propValue) {
+        if (propName === 'name') {
+          buildingPath += "" + propValue + "/";
         }
-        return _results;
-      };
-      cleanPath = function() {
+        if (propValue === name) {
+          routePath = buildingPath;
+          buildingPath = "";
+          return false;
+        }
+      }, function() {
         var regex;
         regex = /\/([^\/]+)\/$/;
         return buildingPath = buildingPath.replace(regex, '/');
-      };
-      traverse(this.model);
+      });
       return routePath;
+    };
+    this.getRoute = function(path) {
+      var currentStep, newChild, route, stepsArray;
+      path = path.replace(/\/$/, '').replace(/^\//, '');
+      stepsArray = path.split('/');
+      currentStep = 0;
+      route = {};
+      newChild = false;
+      this.traverse(this.model, function(propName, propValue, obj) {
+        if (propName === 'name') {
+          if (propValue === stepsArray[currentStep]) {
+            currentStep += 1;
+            if (currentStep === stepsArray.length) {
+              route = obj;
+              return false;
+            }
+          } else if (newChild) {
+            currentStep -= 1;
+            return newChild = false;
+          }
+        }
+      }, function() {
+        return newChild = true;
+      });
+      return route;
+    };
+    this.traverse = function(obj, fn, fn2) {
+      var child, i, nextBranch, propName, propValue;
+      nextBranch = function() {
+        if (fn2 != null) {
+          return fn2();
+        }
+      };
+      for (propName in obj) {
+        propValue = obj[propName];
+        if (fn(propName, propValue, obj) === false) {
+          break;
+        }
+        if (propName === "children") {
+          if (propValue.length) {
+            for (i in propValue) {
+              child = propValue[i];
+              this.traverse(child, fn, fn2);
+              nextBranch();
+            }
+          }
+        }
+      }
+      return '';
     };
     this.born();
     return this;

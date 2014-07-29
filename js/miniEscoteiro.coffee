@@ -5,25 +5,6 @@ context =
 
 $("body").html template context
 
-`urls = [
-    {
-		url: '/',
-		name: 'index',
-		template: '',
-		context: {
-			name: "x",
-		}
-	},
-	{
-		url: '/algo',
-		name: 'algo',
-		template: '',
-		context: {
-			name: "aee"
-		}
-	}
-]`
-
 `appModel = {
 	name: 'index',
 	element: '#div',
@@ -99,60 +80,81 @@ $("body").html template context
 			]
 		},
 	]
-}
-`
-
-
-
-
-Object.size = (obj) ->
-    size = 0
-    for key of obj
-    	size++ if obj.hasOwnProperty key
-    return size
-
-
-
+}`
 
 $.fn.miniEscoteiro = (params) ->
 	@model = params
 	@defaultRoute = @currentRoute = params.name || 'index'
-	_this = @
 
 	@born = ->
-		console.log @getRoutePath('algo4')
-
-	@render = ->
-		''
+		console.log @getRoute('index/algo1/algo2-3')
+		@getRoute('index/algo1/algo2-2/algo3/')
 
 	@getRoutePath = (name) ->
 		routePath = ""
 		buildingPath = ""
-		breakLoop = false
-		traverse = (obj) ->
-			for propName, propValue of obj
-				break if breakLoop
-				# (DO STUFF)
+		@traverse @model, (propName, propValue) ->
 				if propName == 'name'
 					buildingPath += "#{propValue}/"
 				if propValue == name # stop the world, i wanna get off
 					routePath = buildingPath
-					stopLoop = true
-					break
-				#----------------------------------------
-				# Children is an array of routes.
-				# Keep traversing them, too.
-				if propName == "children"
-					if propValue.length
-						for i, child of propValue
-							traverse child
-							cleanPath()
-		cleanPath = ->
-			regex = /\/([^\/]+)\/$/
-			buildingPath = buildingPath.replace regex, '/'
-		traverse( @model )
+					buildingPath = ""
+					return false
+			, () ->
+				# index/path1/path1-1/ -> index/path1/
+				regex = /\/([^\/]+)\/$/
+				buildingPath = buildingPath.replace regex, '/'
 		return routePath
+
+
+
+	# Returns an object for the route.
+	# It is reached following the names in the path
+
+	@getRoute = (path) ->
+		path = path.replace(/\/$/, '').replace(/^\//, '') # clean '/' on beginning and endings
+		stepsArray = path.split '/'
+		currentStep = 0
+		route = {}
+		newChild = false
+		@traverse @model, (propName, propValue, obj) ->
+				if propName == 'name' 
+					# check if current propValue is present on the stepsArray in the
+					# right position, in order to make sure we will find the right route.
+					if propValue == stepsArray[currentStep]
+						currentStep += 1
+						if currentStep == stepsArray.length
+							route = obj
+							return false # stopping everything
+					else if newChild
+						currentStep -= 1
+						newChild = false
+			, () ->
+				newChild = true
+		return route
+
+
 	
+	# Loops through all the model object properties,
+	# making it available to check each property value
+	# at each iteration time. 
+	
+	@traverse = (obj, fn, fn2) ->
+		nextBranch = ->
+			if fn2? then fn2()
+		for propName, propValue of obj
+			# (DOING STUFF)
+			break if fn(propName, propValue, obj) == false
+			# ----------------------------------------
+			# Children is an array of routes.
+			# Keep traversing them, too.
+			if propName == "children"
+				if propValue.length
+					for i, child of propValue
+						@traverse child, fn, fn2
+						nextBranch()
+		''
+
 	# =====================================================================
 	@born()
 	return @
